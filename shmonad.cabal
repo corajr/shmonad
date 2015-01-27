@@ -1,0 +1,31 @@
+name:                shmonad
+version:             0.1.0.0
+-- synopsis:            
+-- description:         
+license:             BSD2
+license-file:        LICENSE
+author:              Chris Johnson-Roberson
+maintainer:          chris.johnson.roberson@gmail.com
+-- copyright:           
+category:            System
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+library
+  exposed-modules:     Shmonad 
+  -- other-modules:       
+  -- other-extensions:    
+  build-depends:       base
+                     , free
+                     , text
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+
+executable shmonad
+  main-is:             src/Main.hs
+  build-depends:       base
+                     , shmonad
+                     , text
+
+--test-suite test
