@@ -8,8 +8,8 @@ with haskellPackages; cabal.mkDerivation (self: {
   src = ./.;
   isLibrary = true;
   isExecutable = true;
-  buildDepends = [ filepath free hspec text ];
-  testDepends = [ hspec text ];
+  buildDepends = [ filepath free hspec QuickCheck temporary text ];
+  testDepends = [ hspec QuickCheck temporary text ];
 buildTools = [ cabalInstall_1_20_0_6 ];
 shellHook =
 ''

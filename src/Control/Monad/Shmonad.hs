@@ -14,7 +14,7 @@ module Control.Monad.Shmonad
 
 import Prelude hiding ((++))
 import Control.Monad.Free
--- import Control.Monad
+--import Control.Monad()
 import qualified Data.Text.Lazy as L
 import Data.Monoid
 import Data.String
@@ -79,9 +79,9 @@ toShellScript = go (0 :: Integer) where
       Free f -> case f of
         NewVar name' expr' k -> 
           let v = VarID n name'
-          in uniqueName v <> "=" <> shExpr expr' <> "\n" <> go (n + 1) (k v)
+          in fromName (uniqueName v) <> "=" <> shExpr expr' <> "\n" <> go (n + 1) (k v)
         SetVar v e script' -> 
-          uniqueName v <> "=" <> shExpr e <> "\n" <>
+          fromName (uniqueName v) <> "=" <> shExpr e <> "\n" <>
             go n script'
         Echo e script' ->
           "echo " <> shExpr e <> "\n" <>

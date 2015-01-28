@@ -31,7 +31,9 @@ executable shmonad
                      , shmonad
                      , text
                      , process
+                     , temporary
                      , hspec
+                     , QuickCheck
   default-language:    Haskell2010
 
 test-suite test
@@ -42,5 +44,7 @@ test-suite test
                      , shmonad
                      , text
                      , process
+                     , temporary
                      , hspec
+                     , QuickCheck
   default-language:    Haskell2010
