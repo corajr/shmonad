@@ -8,6 +8,7 @@ import Control.Monad
 import Control.Monad.Shmonad.Expression
 import Control.Applicative ((<$>), (<*>))
 import Data.Char (isDigit, chr)
+import Data.Number.Nat
 import qualified Data.Text.Lazy as L
 
 default (L.Text)
@@ -23,6 +24,11 @@ instance Arbitrary L.Text where
 
 instance Arbitrary Name where
   arbitrary = toName <$> randText `suchThat` isValidName
+
+instance Arbitrary Nat where
+  arbitrary = do
+    NonNegative x <- arbitrary :: Gen (NonNegative Integer)
+    return $ toNat x
 
 instance Variable a => Arbitrary (VarID a) where
   arbitrary = VarID <$> arbitrary <*> arbitrary

@@ -22,13 +22,12 @@ module Control.Monad.Shmonad.Expression
 import Data.Char
 import Data.String (IsString, fromString)
 import Data.Monoid
+import Data.Number.Nat
 import System.FilePath
 import qualified Data.Text.Lazy as L
 
 default (L.Text)
 
-type UniqueID = Integer
-type ExitValue = Integer
 type Str = L.Text
 
 newtype Name = Name Str
@@ -50,6 +49,9 @@ fromName (Name x) = x
 
 instance IsString Name where
   fromString = toName . L.pack
+
+type UniqueID = Nat
+type ExitValue = Nat
 
 data VarID a = VarID
   { varID   :: UniqueID

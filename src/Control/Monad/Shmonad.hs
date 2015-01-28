@@ -17,6 +17,7 @@ import Control.Monad.Free
 --import Control.Monad()
 import qualified Data.Text.Lazy as L
 import Data.Monoid
+import Data.Number.Nat
 import Data.String
 import System.Posix (Fd)
 -- import System.Posix.IO (stdInput, stdOutput, stdError)
@@ -73,7 +74,7 @@ exit :: Expr Integer -> Script ()
 exit expr = liftF $ Exit expr
 
 toShellScript :: Script next -> Str
-toShellScript = go (0 :: Integer) where
+toShellScript = go (0 :: Nat) where
   go n script =
     case script of
       Free f -> case f of
