@@ -3,9 +3,9 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ExtendedDefaultRules #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Control.Monad.Shmonad.Expression
   ( UniqueID
-  , ExitValue
   , Str
   , Name
   , isValidName
@@ -51,7 +51,6 @@ instance IsString Name where
   fromString = toName . L.pack
 
 type UniqueID = Nat
-type ExitValue = Nat
 
 data VarID a = VarID
   { varID   :: UniqueID
@@ -59,7 +58,7 @@ data VarID a = VarID
   } deriving (Eq, Show)
 
 -- | A Variable provides a unique name for reference in the shell.
-class (Show a) => Variable a where
+class (Show a, Eq a) => Variable a where
   uniqueName :: VarID a -> Name 
   uniqueName (VarID vID vName) = toName $ fromName vName <> L.pack (show vID)
 

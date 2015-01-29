@@ -9,7 +9,7 @@ with haskellPackages; cabal.mkDerivation (self: {
   isLibrary = true;
   isExecutable = true;
   buildDepends = [
-    filepath free hspec nat QuickCheck temporary text
+    filepath free hspec mtl nat QuickCheck temporary text
   ];
   testDepends = [ hspec nat QuickCheck temporary text ];
 buildTools = [ cabalInstall_1_20_0_6 ];

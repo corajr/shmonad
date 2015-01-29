@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ExtendedDefaultRules #-}
-module Control.Monad.Shmonad.ExpressionSpec (main, spec) where
+module Control.Monad.Shmonad.ExpressionSpec (main, spec, VStr(..), VInt(..)) where
 
 import Test.Hspec
 import Test.QuickCheck
@@ -38,6 +38,12 @@ newtype VStr = VStr (Expr Str)
 
 instance Arbitrary VStr where
   arbitrary = VStr <$> Var <$> arbitrary
+
+newtype VInt = VInt (Expr Integer)
+  deriving Show
+
+instance Arbitrary VInt where
+  arbitrary = VInt <$> Var <$> arbitrary
 
 main :: IO ()
 main = hspec spec
