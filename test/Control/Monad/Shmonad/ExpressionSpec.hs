@@ -8,6 +8,7 @@ import Control.Monad
 import Control.Monad.Shmonad.Expression
 import Control.Applicative ((<$>), (<*>))
 import Data.Char (isDigit, chr)
+import Data.Monoid ((<>))
 import Data.Number.Nat
 import qualified Data.Text.Lazy as L
 
@@ -114,4 +115,36 @@ expressionSpec =
             l = Lit 1
         let s = Shown l
         shExpr s `shouldBe` "1"
+    describe "StrEquals" $ do
+      it "checks whether two strings are equal" $ do
+        let l1 = Lit ("" :: L.Text)
+        let l2 = Lit ("hi" :: L.Text)
+        let eqs = l1 .==. l2
+        shExpr eqs `shouldBe` "[ \"\" = \"hi\" ]"
+      it "checks whether two strings are not equal" $ do
+        let l1 = Lit ("" :: L.Text)
+        let l2 = Lit ("hi" :: L.Text)
+        let ne = l1 ./=. l2
+        shExpr ne `shouldBe` "! [ \"\" = \"hi\" ]"
+    describe "NumCompare" $ do
+      let n1 = Lit (0 :: Integer)
+      let n2 = Lit 1
+      it "checks whether two numbers are equal" $ do
+        let eq = n1 .==. n2
+        shExpr eq `shouldBe` "[ 0 -eq 1 ]"
+      it "checks whether two numbers are not equal" $ do
+        let eq = n1 ./=. n2
+        shExpr eq `shouldBe` "! [ 0 -eq 1 ]"
+      it "checks whether one numbers is less than another" $ do
+        let lt = n1 .<. n2
+        shExpr lt `shouldBe` "[ 0 -lt 1 ]"
+      it "checks whether one number is less than or equal to another" $ do
+        let le = n1 .<=. n2
+        shExpr le `shouldBe` "[ 0 -le 1 ]"
+      it "checks whether one number is greater than another" $ do
+        let gt = n1 .>. n2
+        shExpr gt `shouldBe` "[ 0 -gt 1 ]"
+      it "checks whether one number is greater than or equal to another" $ do
+        let ge = n1 .>=. n2
+        shExpr ge `shouldBe` "[ 0 -ge 1 ]"
 

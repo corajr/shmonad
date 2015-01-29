@@ -40,6 +40,15 @@ echo expr = liftF $ Echo expr ()
 exit :: Expr Integer -> Script ()
 exit expr = liftF $ Exit expr ()
 
+{-
+-- | Exit with the result of a boolean expression
+exit' :: Expr ShBool -> Script ()
+exit' expr = do
+  if_ expr
+    (then_ exit 0)
+    (else_ exit 1)
+-}
+
 -- | Transpiles the DSL into shell script.
 toShellScript :: Script next -> Str
 toShellScript script = w

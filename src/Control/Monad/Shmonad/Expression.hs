@@ -15,6 +15,9 @@ module Control.Monad.Shmonad.Expression
   , Variable(..)
   , Path
   , path
+  , ShEq(..)
+  , ShOrd(..)
+  , ShBool(..)
   , Expr(..)
   , shExpr
   ) where
@@ -73,6 +76,41 @@ path = Path . makeValid . L.unpack
 
 instance Variable Path
 
+newtype ShBool = ShBool Bool
+  deriving Eq
+
+instance Show ShBool where
+  show (ShBool b) = if b then "(true)" else "(false)"
+
+instance Variable ShBool
+
+class (Variable a) => ShEq a where
+  (.==.) :: Expr a -> Expr a -> Expr ShBool
+
+  (./=.) :: Expr a -> Expr a -> Expr ShBool
+  x ./=. y = Not (x .==. y)
+
+instance ShEq Str where
+  (.==.) = StrEquals
+
+instance ShEq Integer where
+  (.==.) = NumCompare Equal
+
+data CompareOp = Equal | GreaterThan | GreaterOrEqual | LessThan | LessOrEqual
+  deriving Show
+
+class (Variable a) => ShOrd a where
+  (.>.) :: Expr a -> Expr a -> Expr ShBool
+  (.>=.) :: Expr a -> Expr a -> Expr ShBool
+  (.<.) :: Expr a -> Expr a -> Expr ShBool
+  (.<=.) :: Expr a -> Expr a -> Expr ShBool
+
+instance ShOrd Integer where
+  (.>.)  = NumCompare GreaterThan
+  (.>=.) = NumCompare GreaterOrEqual
+  (.<.)  = NumCompare LessThan
+  (.<=.) = NumCompare LessOrEqual
+
 -- | A shell expression.
 data Expr a where
   Lit    :: (Variable a) => a -> Expr a 
@@ -80,9 +118,11 @@ data Expr a where
   Plus   :: Expr Integer -> Expr Integer -> Expr Integer
   Concat :: Expr Str -> Expr Str -> Expr Str
   Shown  :: (Variable a) => Expr a -> Expr Str
+  Not    :: Expr ShBool -> Expr ShBool
+  StrEquals :: Expr Str -> Expr Str -> Expr ShBool
+  NumCompare :: CompareOp -> Expr Integer -> Expr Integer -> Expr ShBool
 
 deriving instance Variable a => Show (Expr a)
---  Test   :: Condition -> Expr ExitValue
 
 instance Num (Expr Integer) where
   fromInteger = Lit
@@ -102,8 +142,16 @@ instance Monoid (Expr Str) where
 -- | Returns the text of an expression
 shExpr :: (Show a, Variable a) => Expr a -> Str
 shExpr expr = case expr of
-  Lit x               -> L.pack $ show x
-  Var x               -> "${" <> fromName (uniqueName x) <> "}"
-  Plus expr1 expr2    -> "$((" <> shExpr expr1 <> "+" <> shExpr expr2 <> "))"
-  Concat expr1 expr2  -> shExpr expr1 <> shExpr expr2
-  Shown  expr'        -> shExpr expr'
+  Lit x                    -> L.pack $ show x
+  Var x                    -> "${" <> fromName (uniqueName x) <> "}"
+  Plus expr1 expr2         -> "$((" <> shExpr expr1 <> "+" <> shExpr expr2 <> "))"
+  Concat expr1 expr2       -> shExpr expr1 <> shExpr expr2
+  Shown expr'              -> shExpr expr'
+  Not expr'                -> "! " <> shExpr expr'
+  StrEquals expr1 expr2    -> "[ " <> shExpr expr1 <> " = " <> shExpr expr2 <> " ]"
+  NumCompare c expr1 expr2 -> case c of 
+                                Equal -> "[ " <> shExpr expr1 <> " -eq " <> shExpr expr2 <> " ]"
+                                LessThan -> "[ " <> shExpr expr1 <> " -lt " <> shExpr expr2 <> " ]"
+                                LessOrEqual -> "[ " <> shExpr expr1 <> " -le " <> shExpr expr2 <> " ]"
+                                GreaterThan -> "[ " <> shExpr expr1 <> " -gt " <> shExpr expr2 <> " ]"
+                                GreaterOrEqual -> "[ " <> shExpr expr1 <> " -ge " <> shExpr expr2 <> " ]"
