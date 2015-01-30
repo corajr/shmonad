@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE StandaloneDeriving #-}
 module Control.Monad.Shmonad.ConditionalSpec (main, spec) where
 
 import Test.Hspec
@@ -8,7 +9,12 @@ data S b c where
   A :: S b c
   B :: S b c
   C :: S b c
-  Conditional :: (Show b, Show c) => Cond b c -> S b c
+  Conditional :: (Show b, Show c, Eq b, Eq c) => Cond b c -> S b c
+
+deriving instance (Eq b) => Eq (If b)
+deriving instance (Eq b, Eq c) => Eq (PartialCond b c)
+deriving instance (Eq b, Eq c) => Eq (Cond b c)
+deriving instance Eq (S b c)
 
 instance Show (S b c) where
   show A = "A"
@@ -58,3 +64,16 @@ spec = do
     it "takes a partial condition and completes it" $ do
       let f = Fi (Then (If True) B)
       show f `shouldBe` "(If True Then B Fi)"
+  describe "Smart constructors" $ do
+    it "allows for if-then-fi" $ do
+      let c = ifThen True A fi
+      c `shouldBe` Fi (Then (If True) A)
+    it "allows for if-then-else-fi" $ do
+      let c = ifThen True A $ elseFi B
+      c `shouldBe` ElseFi (Then (If True) A) B
+    it "allows for if-then-elif-then-fi" $ do
+      let c = ifThen True A $ elifThen False B fi
+      c `shouldBe` Fi (ElifThen (Then (If True) A) False B)
+    it "allows for if-then-elif-then-elif-then-else-fi" $ do
+      let c = ifThen True A $ elifThen False B $ elifThen True C $ elseFi A
+      c `shouldBe` ElseFi (ElifThen (ElifThen (Then (If True) A) False B) True C) A

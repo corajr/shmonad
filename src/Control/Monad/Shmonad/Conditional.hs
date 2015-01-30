@@ -14,3 +14,15 @@ data PartialCond b c where
 data Cond b c where
   ElseFi :: (Boolean b, Command c) => PartialCond b c -> c -> Cond b c
   Fi :: (Boolean b, Command c) => PartialCond b c -> Cond b c
+
+ifThen :: (Boolean b, Command c) => b -> c -> (PartialCond b c -> Cond b c) -> Cond b c
+ifThen b c f = f (Then (If b) c)
+
+elifThen :: (Boolean b, Command c) => b -> c -> (PartialCond b c -> Cond b c) -> PartialCond b c -> Cond b c
+elifThen b c f i = f (ElifThen i b c)
+
+elseFi :: (Boolean b, Command c) => c -> PartialCond b c -> Cond b c
+elseFi = flip ElseFi
+
+fi :: (Boolean b, Command c) => PartialCond b c -> Cond b c
+fi = Fi
