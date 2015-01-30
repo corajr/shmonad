@@ -2,91 +2,20 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ExtendedDefaultRules #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 module Control.Monad.Shmonad.Expression
-  ( UniqueID
-  , Str
-  , Name
-  , isValidName
-  , toName
-  , fromName
-  , VarID(..)
-  , Variable(..)
-  , Path
-  , path
-  , ShEq(..)
-  , ShOrd(..)
-  , ShBool(..)
-  , Expr(..)
-  , shExpr
+  ( module Control.Monad.Shmonad.Expression
+  , module Control.Monad.Shmonad.Expression.Types
   ) where
 
-import Data.Char
-import Data.String (IsString, fromString)
 import Data.Monoid
-import Data.Number.Nat
-import System.FilePath
-import System.Exit (ExitCode(..))
+import Data.String (IsString, fromString)
 import qualified Data.Text.Lazy as L
+
+import Control.Monad.Shmonad.Expression.Types
 
 default (L.Text)
 
-type Str = L.Text
-
-newtype Name = Name Str
-  deriving (Eq, Show)
-
-isValidName :: Str -> Bool
-isValidName x = nonEmpty && allValidChars && notStartWithNumber
-  where nonEmpty = not (L.null x)
-        allValidChars = L.all (\c -> isAlphaNum c || c == '_') x
-        notStartWithNumber = not . isDigit $ L.head x 
-
-toName :: Str -> Name
-toName x
-  | isValidName x = Name x
-  | otherwise = error $ L.unpack ("\"" <> x <> "\" is not a valid shell name.")
-
-fromName :: Name -> Str
-fromName (Name x) = x
-
-instance IsString Name where
-  fromString = toName . L.pack
-
-type UniqueID = Nat
-
-data VarID a = VarID
-  { varID   :: UniqueID
-  , varName :: Name
-  } deriving (Eq, Show)
-
--- | A Variable provides a unique name for reference in the shell.
-class (Show a, Eq a) => Variable a where
-  uniqueName :: VarID a -> Name 
-  uniqueName (VarID vID vName) = toName $ fromName vName <> L.pack (show vID)
-
-instance Variable Str
-instance Variable Integer
-
-newtype Path = Path FilePath
-  deriving (Eq, Show)
-
-path :: Str -> Path
-path = Path . makeValid . L.unpack
-
-instance Variable Path
-
-newtype ShBool = ShBool ExitCode
-  deriving Eq
-
-instance Show ShBool where
-  show (ShBool b) = case b of
-    ExitSuccess   -> "(true)" 
-    ExitFailure _ -> "(false)"
-
-instance Variable ShBool
-
+-- | Two Variables may be compared for equality.
 class (Variable a) => ShEq a where
   (.==.) :: Expr a -> Expr a -> Expr ShBool
 
@@ -99,10 +28,12 @@ instance ShEq Str where
 instance ShEq Integer where
   (.==.) = NumCompare Equal
 
+-- | Enumeration of numerical comparisons (==, <, >, ...).
 data CompareOp = Equal | GreaterThan | GreaterOrEqual | LessThan | LessOrEqual
   deriving Show
 
-class (Variable a) => ShOrd a where
+-- | Two numeric variables may be less than, greater than, or equal to each other.
+class (Variable a, Num a) => ShOrd a where
   (.>.) :: Expr a -> Expr a -> Expr ShBool
   (.>=.) :: Expr a -> Expr a -> Expr ShBool
   (.<.) :: Expr a -> Expr a -> Expr ShBool

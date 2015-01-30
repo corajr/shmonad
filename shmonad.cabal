@@ -16,6 +16,7 @@ library
   exposed-modules:     Control.Monad.Shmonad
                        Control.Monad.Shmonad.Conditional
                        Control.Monad.Shmonad.Expression
+                       Control.Monad.Shmonad.Expression.Types
                        Control.Monad.Shmonad.Statement
   -- other-modules:       
   -- other-extensions:    
