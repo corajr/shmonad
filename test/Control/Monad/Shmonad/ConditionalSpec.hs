@@ -69,11 +69,17 @@ spec = do
       let c = ifThen True A fi
       c `shouldBe` Fi (Then (If True) A)
     it "allows for if-then-else-fi" $ do
-      let c = ifThen True A $ elseFi B
+      let c = ifThen True A $
+                elseFi B 
       c `shouldBe` ElseFi (Then (If True) A) B
     it "allows for if-then-elif-then-fi" $ do
-      let c = ifThen True A $ elifThen False B fi
+      let c = ifThen True A $ 
+                elifThen False B
+                fi
       c `shouldBe` Fi (ElifThen (Then (If True) A) False B)
     it "allows for if-then-elif-then-elif-then-else-fi" $ do
-      let c = ifThen True A $ elifThen False B $ elifThen True C $ elseFi A
+      let c = ifThen True A $
+                elifThen False B $
+                elifThen True C $
+                elseFi A
       c `shouldBe` ElseFi (ElifThen (ElifThen (Then (If True) A) False B) True C) A

@@ -57,7 +57,9 @@ spec = do
 variableSpec :: Spec
 variableSpec = do
   describe "A Name" $ do
-    it "must be non-empty" $ property $
+    it "must be non-empty" $
+      "" `shouldSatisfy` not . isValidName
+    it "must be non-empty (QC)" $ property $
       not . L.null . fromName
     it "must not start with a digit" $ property $
       \str -> not (L.null str) && isDigit (L.head str) ==>
