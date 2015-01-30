@@ -27,6 +27,7 @@ import Data.String (IsString, fromString)
 import Data.Monoid
 import Data.Number.Nat
 import System.FilePath
+import System.Exit (ExitCode(..))
 import qualified Data.Text.Lazy as L
 
 default (L.Text)
@@ -76,11 +77,13 @@ path = Path . makeValid . L.unpack
 
 instance Variable Path
 
-newtype ShBool = ShBool Bool
+newtype ShBool = ShBool ExitCode
   deriving Eq
 
 instance Show ShBool where
-  show (ShBool b) = if b then "(true)" else "(false)"
+  show (ShBool b) = case b of
+    ExitSuccess   -> "(true)" 
+    ExitFailure _ -> "(false)"
 
 instance Variable ShBool
 
