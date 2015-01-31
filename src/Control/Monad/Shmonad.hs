@@ -4,6 +4,8 @@
 
 module Control.Monad.Shmonad
   ( module Control.Monad.Shmonad
+  , module Control.Monad.Shmonad.Command
+  , module Control.Monad.Shmonad.Conditional
   , module Control.Monad.Shmonad.Expression
   , module Control.Monad.Shmonad.Statement
   ) where
@@ -15,6 +17,8 @@ import Control.Monad.RWS.Lazy
 import qualified Data.Text.Lazy as L
 import Data.Number.Nat
 
+import Control.Monad.Shmonad.Command
+import Control.Monad.Shmonad.Conditional
 import Control.Monad.Shmonad.Expression
 import Control.Monad.Shmonad.Statement
 
@@ -33,21 +37,15 @@ setVar v expr = liftF $ SetVar v expr ()
 echo :: Expr Str -> Script ()
 echo expr = liftF $ Echo expr ()
 
--- cmd :: Expr Path -> [Expr Str] -> [Redirect] -> Script (Expr ExitValue)
--- cmd p args' redirs' = liftF $ Command (Cmd p args' redirs') id
+cmd :: Expr Path -> [Expr Str] -> [Redirect] -> Script ()
+cmd p args' redirs' = liftF $ Command (cmd' p args' redirs') ()
+
+exec :: Command a => Expr (Cmd a) -> Script ()
+exec c = liftF $ Command c ()
 
 -- | Exit with a result code.
 exit :: Expr Integer -> Script ()
 exit expr = liftF $ Exit expr ()
-
-{-
--- | Exit with the result of a boolean expression
-exit' :: Expr ShBool -> Script ()
-exit' expr = do
-  if_ expr
-    (then_ exit 0)
-    (else_ exit 1)
--}
 
 -- | Transpiles the DSL into shell script.
 toShellScript :: Script next -> Str

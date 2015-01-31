@@ -14,6 +14,7 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     Control.Monad.Shmonad
+                       Control.Monad.Shmonad.Command
                        Control.Monad.Shmonad.Conditional
                        Control.Monad.Shmonad.Expression
                        Control.Monad.Shmonad.Expression.Types

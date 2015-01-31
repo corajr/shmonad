@@ -7,7 +7,6 @@ import Data.Char
 import Data.Monoid ((<>))
 import Data.String (IsString, fromString)
 import Data.Number.Nat
-import System.FilePath
 import System.Exit (ExitCode(..))
 
 default (L.Text)
@@ -33,7 +32,10 @@ instance Variable Integer
 
 -- | A standard FilePath (i.e. a string).
 newtype Path = Path FilePath
-  deriving (Eq, Show)
+  deriving (Eq)
+
+instance Show Path where
+  show (Path fp) = show fp
 
 instance Variable Path
 
@@ -63,6 +65,3 @@ toName x
 
 fromName :: Name -> Str
 fromName (Name x) = x
-
-path :: Str -> Path
-path = Path . makeValid . L.unpack

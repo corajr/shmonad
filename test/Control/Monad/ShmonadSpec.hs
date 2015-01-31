@@ -36,6 +36,12 @@ script1result
               ]
     , ""
     )
+
+scriptLs :: Script ()
+scriptLs = do
+  exec ls
+  exit 0
+
 {-
 scriptWithConditionals :: Script ()
 scriptWithConditionals = do
@@ -82,3 +88,11 @@ spec = do
     it "should correctly answer (<=)" $ property $ checkComp (<=) (.<=.)
     it "should correctly answer (>)" $ property $ checkComp (>) (.>.)
     it "should correctly answer (>=)" $ property $ checkComp (>=) (.>=.)
+  describe "Running a command" $ do
+    it "should run a basic command" $ do
+      LIO.putStrLn (toShellScript scriptLs)
+      (r, s, _) <- runScript' scriptLs
+      r `shouldBe` ExitSuccess
+      s `shouldSatisfy` not . null
+    it "should run with specified args" $ do
+      pending

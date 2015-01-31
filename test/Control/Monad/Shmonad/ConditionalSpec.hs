@@ -23,7 +23,7 @@ instance Show (S b c) where
   show (Conditional c) = show c
 
 instance Boolean Bool
-instance Command (S b c)
+instance CondCommand (S b c)
 
 instance Show b => Show (If b) where
   show (If x) = "If " ++ show x
