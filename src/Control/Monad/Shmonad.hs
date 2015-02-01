@@ -4,10 +4,7 @@
 
 module Control.Monad.Shmonad
   ( module Control.Monad.Shmonad
-  , module Control.Monad.Shmonad.Command
-  , module Control.Monad.Shmonad.Conditional
-  , module Control.Monad.Shmonad.Expression
-  , module Control.Monad.Shmonad.Statement
+  , module X
   ) where
 
 import Prelude hiding ((++))
@@ -17,10 +14,10 @@ import Control.Monad.RWS.Lazy
 import qualified Data.Text.Lazy as L
 import Data.Number.Nat
 
-import Control.Monad.Shmonad.Command
-import Control.Monad.Shmonad.Conditional
-import Control.Monad.Shmonad.Expression
-import Control.Monad.Shmonad.Statement
+import Control.Monad.Shmonad.Command as X
+import Control.Monad.Shmonad.Conditional as X
+import Control.Monad.Shmonad.Expression as X
+import Control.Monad.Shmonad.Statement as X
 
 default (L.Text)
 
@@ -33,11 +30,11 @@ newVar name val = liftF $ NewVar name val id
 setVar :: (Variable a) => VarID a -> Expr a -> Script ()
 setVar v expr = liftF $ SetVar v expr ()
 
--- | Echo a string.
-echo :: Expr Str -> Script ()
+-- | Echo anything that can be turned into a string.
+echo :: (ShShow a) => Expr a -> Script ()
 echo expr = liftF $ Echo expr ()
 
-cmd :: Expr Path -> [Expr Str] -> [Redirect] -> Script ()
+cmd :: Expr Path -> [Expr StrSum] -> [Redirect] -> Script ()
 cmd p args' redirs' = liftF $ Command (cmd' p args' redirs') ()
 
 exec :: Command a => Expr (Cmd a) -> Script ()

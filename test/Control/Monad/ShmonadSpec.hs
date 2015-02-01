@@ -3,6 +3,7 @@ module Control.Monad.ShmonadSpec (main, spec) where
 
 import Test.Hspec
 import Test.QuickCheck
+import Prelude hiding ((++))
 import Control.Monad.Shmonad
 import Data.Monoid ((<>))
 import System.Process
@@ -19,8 +20,8 @@ main = hspec spec
 
 script1 :: Script ()
 script1 = do
-  hello <- newVar "hello" "Hello, "
-  world <- newVar "world" "World!"
+  hello <- newVar "hello" (quote "Hello, ")
+  world <- newVar "world" (quote "World!")
   setVar hello (Var hello <> Var world)
   echo ("hello: " <> Var hello)
   echo ("world: " <> Var world)

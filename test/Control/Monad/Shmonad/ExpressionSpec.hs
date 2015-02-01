@@ -35,13 +35,11 @@ instance Variable a => Arbitrary (VarID a) where
   arbitrary = VarID <$> arbitrary <*> arbitrary
 
 newtype VStr = VStr (Expr Str)
-  deriving Show
 
 instance Arbitrary VStr where
   arbitrary = VStr <$> Var <$> arbitrary
 
 newtype VInt = VInt (Expr Integer)
-  deriving Show
 
 instance Arbitrary VInt where
   arbitrary = VInt <$> Var <$> arbitrary
@@ -53,6 +51,7 @@ spec :: Spec
 spec = do
   variableSpec
   expressionSpec
+  redirectSpec
 
 variableSpec :: Spec
 variableSpec = do
@@ -60,23 +59,23 @@ variableSpec = do
     it "must be non-empty" $
       "" `shouldSatisfy` not . isValidName
     it "must be non-empty (QC)" $ property $
-      not . L.null . fromName
+      \(Blind x) -> not . L.null $ fromName x
     it "must not start with a digit" $ property $
       \str -> not (L.null str) && isDigit (L.head str) ==>
         not (isValidName str)
     it "can only contain letters, digits and underscores" $ property $
-      isValidName . fromName
+      \(Blind x) -> isValidName $ fromName x
   let var :: (VarID Integer)
-      var = VarID 0 "hello"
+      var = VarID (Just 0) "hello"
   describe "A VarID" $ do
     it "has a unique numerical ID and a name" $ do
-      varID var `shouldBe` 0
+      varID var `shouldBe` Just 0
       let n = toName "hello"
       varName var `shouldBe` n
     it "has an associated type" $ do
       let var2 :: (VarID Str)
-          var2 = VarID 1 "world"
-      varID var2 `shouldBe` 1
+          var2 = VarID (Just 1) "world"
+      varID var2 `shouldBe` Just 1
       -- because of phantom type var, impossible to write:
       -- var2 `shouldSatisfy` (/=) var
   describe "The Variable typeclass" $ do
@@ -84,7 +83,7 @@ variableSpec = do
       let n = toName "hello0"
       uniqueName var `shouldBe` n
     it "should produce a unique name that is a valid shell name" $ property $
-      \(VStr (Var x)) -> isValidName . fromName $ uniqueName x
+      \(Blind (VStr (Var x))) -> isValidName . fromName $ uniqueName x
 
 expressionSpec :: Spec
 expressionSpec =
@@ -97,7 +96,7 @@ expressionSpec =
     describe "Var a" $
       it "turns a VarID into an expression" $ do
         let var :: Expr Str
-            var = Var (VarID 2 "foo")
+            var = Var (VarID (Just 2) "foo")
         shExpr var `shouldBe` "${foo2}"
     describe "Plus" $
       it "adds two Expr Integers" $ do
@@ -107,9 +106,9 @@ expressionSpec =
         shExpr sumInts `shouldBe` "$((1+2))"
     describe "Concat" $
       it "concatenates two Expr Strs" $ do
-        let str1 = "Hello, "
-        let str2 = "world!"
-        let str = Concat str1 str2
+        let str1 = quote "Hello, "
+        let str2 = quote "world!"
+        let str = str1 <> str2
         shExpr str `shouldBe` "\"Hello, \"\"world!\""
     describe "Shown" $
       it "turns an Expr a with Show a into Expr Str" $ do
@@ -119,13 +118,13 @@ expressionSpec =
         shExpr s `shouldBe` "1"
     describe "StrEquals" $ do
       it "checks whether two strings are equal" $ do
-        let l1 = Lit ("" :: L.Text)
-        let l2 = Lit ("hi" :: L.Text)
+        let l1 = quote ""
+        let l2 = quote "hi"
         let eqs = l1 .==. l2
         shExpr eqs `shouldBe` "[ \"\" = \"hi\" ]"
       it "checks whether two strings are not equal" $ do
-        let l1 = Lit ("" :: L.Text)
-        let l2 = Lit ("hi" :: L.Text)
+        let l1 = quote ""
+        let l2 = quote "hi"
         let ne = l1 ./=. l2
         shExpr ne `shouldBe` "! [ \"\" = \"hi\" ]"
     describe "NumCompare" $ do
@@ -150,3 +149,19 @@ expressionSpec =
         let ge = n1 .>=. n2
         shExpr ge `shouldBe` "[ 0 -ge 1 ]"
 
+redirectSpec :: Spec
+redirectSpec =
+  describe "A Redirect" $ do
+    it "can map a file descriptor to a file" $ do
+      let r = redirToStr (toFile (path "/tmp/blah"))
+      shExpr r `shouldBe` "> \"/tmp/blah\""
+    it "can map a file descriptor to a file for append" $ do
+      let r = redirToStr (appendToFile (path "/tmp/blah"))
+      shExpr r `shouldBe` ">> \"/tmp/blah\""
+    it "can map a file descriptor to a different file descriptor" $ do
+      let r = redirToStr stderrToStdout
+      shExpr r `shouldBe` "2>&1"
+    it "can send a file to stdin" $ do
+      let inputFile = fromFile (path "/test")
+      let r = redirToStr inputFile
+      shExpr r `shouldBe` "< \"/test\""

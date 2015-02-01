@@ -15,7 +15,6 @@ import Data.Number.Nat
 
 default (L.Text)
 
-
 -- | Provides a writer and state monad for transforming ASTs into shell script.
 type Transpiler = RWS () Str Nat
 
@@ -24,7 +23,7 @@ data Statement next where
   SetVar :: (Variable v) => VarID v -> Expr v -> next -> Statement next
   Command :: (Command a) => Expr (Cmd a) -> next -> Statement next
   Conditional :: Cond (Expr ShBool) (Statement a) -> next -> Statement next
-  Echo :: Expr Str -> next -> Statement next
+  Echo :: (ShShow a) => Expr a -> next -> Statement next
   Exit :: Expr Integer -> next -> Statement next
 
 instance Boolean (Expr ShBool)
@@ -35,7 +34,7 @@ instance Functor Statement where
   fmap f (SetVar v e n) = SetVar v e (f n)
   fmap f (Command c n) = Command c (f n)
   fmap f (Conditional c n) = Conditional c (f n)
-  fmap f (Echo str n) = Echo str (f n)
+  fmap f (Echo s n) = Echo s (f n)
   fmap f (Exit e n) = Exit e (f n)
 
 type Script = Free Statement
@@ -76,7 +75,7 @@ transpile s = case s of
   Free f -> case f of
     NewVar name' expr' cont -> do
       n <- get
-      let vi = VarID n name' :: VarID v
+      let vi = VarID (Just n) name' :: VarID v
       put (n + 1)
       tell $ fromName (uniqueName vi) <> "=" <> shExpr expr' <> "\n"
       transpile (cont vi)
@@ -89,8 +88,8 @@ transpile s = case s of
     Conditional c n -> do
       transpileCond c
       transpile n
-    Echo str n -> do
-      tell $ "echo " <> shExpr str <> "\n"
+    Echo s' n -> do
+      tell $ "echo " <> shExpr s' <> "\n"
       transpile n
     Exit e n -> do
       tell $ "exit " <> shExpr e <> "\n"

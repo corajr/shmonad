@@ -15,24 +15,31 @@ type Str = L.Text
 type UniqueID = Nat
 
 newtype Name = Name Str
-  deriving (Eq, Show)
+  deriving Eq
+
+instance Show Name where
+  show (Name n) = L.unpack n
 
 data VarID a = VarID
-  { varID   :: UniqueID
+  { varID   :: Maybe UniqueID -- must have this, unless coming from environment
   , varName :: Name
-  } deriving (Eq, Show)
+  }
 
 -- | A Variable has a unique name.
-class (Show a, Eq a) => Variable a where
+class Variable a where
   uniqueName :: VarID a -> Name 
-  uniqueName (VarID vID vName) = toName $ fromName vName <> L.pack (show vID)
+  uniqueName (VarID vID vName) 
+    = toName $ fromName vName <> 
+        case vID of
+          Just n -> L.pack (show n)
+          Nothing -> "" 
 
 instance Variable Str
 instance Variable Integer
 
 -- | A standard FilePath (i.e. a string).
 newtype Path = Path FilePath
-  deriving (Eq)
+  deriving Eq
 
 instance Show Path where
   show (Path fp) = show fp
@@ -40,7 +47,6 @@ instance Show Path where
 instance Variable Path
 
 newtype ShBool = ShBool ExitCode
-  deriving Eq
 
 instance Show ShBool where
   show (ShBool b) = case b of
@@ -49,6 +55,24 @@ instance Show ShBool where
 
 instance Variable ShBool
 
+-- | A Variable may or may not be set when used as a value.
+-- Programs using environment variables should handle both
+-- cases explicitly.
+instance Variable a => Variable (Maybe a)
+
+-- | ShShow defaults to the typical Show instance, but can be customized
+-- for different variable types.
+
+class (Variable a, Show a) => ShShow a where
+  toShString :: a -> Str
+  toShString = L.pack . show
+
+instance ShShow Str where
+  toShString = id
+
+instance ShShow Integer
+instance ShShow Path
+
 instance IsString Name where
   fromString = toName . L.pack
 
@@ -56,7 +80,7 @@ isValidName :: Str -> Bool
 isValidName x = nonEmpty && allValidChars && notStartWithNumber
   where nonEmpty = not (L.null x)
         allValidChars = L.all (\c -> isAlphaNum c || c == '_') x
-        notStartWithNumber = not . isDigit $ L.head x 
+        notStartWithNumber = not . isDigit $ L.head x
 
 toName :: Str -> Name
 toName x
