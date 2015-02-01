@@ -21,7 +21,8 @@ type Transpiler = RWS () Str Nat
 data Statement next where
   NewVar :: (Variable v) => Name -> Expr v -> (VarID v -> next) -> Statement next
   SetVar :: (Variable v) => VarID v -> Expr v -> next -> Statement next
-  Command :: (Command a) => Expr (Cmd a) -> next -> Statement next
+  EnvVar :: (Variable v) => Expr (Maybe v) -> Expr StrSum -> next -> Statement next
+  RunCommand :: (Command a) => Expr (Cmd a) -> next -> Statement next
   Conditional :: Cond (Expr ShBool) (Statement a) -> next -> Statement next
   Echo :: (ShShow a) => Expr a -> next -> Statement next
   Exit :: Expr Integer -> next -> Statement next
@@ -32,7 +33,8 @@ instance CondCommand (Statement next)
 instance Functor Statement where
   fmap f (NewVar name' expr' cont) = NewVar name' expr' (f . cont)
   fmap f (SetVar v e n) = SetVar v e (f n)
-  fmap f (Command c n) = Command c (f n)
+  fmap f (EnvVar mayv errmsg n) = EnvVar mayv errmsg (f n)
+  fmap f (RunCommand c n) = RunCommand c (f n)
   fmap f (Conditional c n) = Conditional c (f n)
   fmap f (Echo s n) = Echo s (f n)
   fmap f (Exit e n) = Exit e (f n)
@@ -46,6 +48,9 @@ indent t = do
   tell . L.unlines . map ("  " <>) $ L.lines w'
   put s'
   return a'
+
+notExist :: Expr (Maybe v) -> Expr StrSum -> Script ()
+notExist = undefined
 
 transpilePartCond :: PartialCond (Expr ShBool) (Statement a) -> Transpiler ()
 transpilePartCond pc
@@ -82,7 +87,10 @@ transpile s = case s of
     SetVar v e n -> do
       tell $ fromName (uniqueName v) <> "=" <> shExpr e <> "\n"
       transpile n
-    Command c n -> do
+    EnvVar v errmsg n -> do
+      transpile (notExist v errmsg)
+      transpile n
+    RunCommand c n -> do
       tell $ shExpr c <> "\n"
       transpile n
     Conditional c n -> do

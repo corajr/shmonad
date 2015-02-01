@@ -18,6 +18,7 @@ library
                        Control.Monad.Shmonad.Conditional
                        Control.Monad.Shmonad.Expression
                        Control.Monad.Shmonad.Expression.Quote
+                       Control.Monad.Shmonad.Expression.Test
                        Control.Monad.Shmonad.Expression.Types
                        Control.Monad.Shmonad.Statement
   -- other-modules:       

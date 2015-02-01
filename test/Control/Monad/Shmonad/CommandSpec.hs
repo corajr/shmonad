@@ -15,12 +15,14 @@ spec = do
   describe "A Cmd a" $ do
     it "should have a command path, list of args, and list of redirects" $ do
       let (ls' :: Cmd Ls) = toCmd (path "ls") defaults []
-      let p = shExpr (cmdPath ls')
+      let p = shExpr (cmdName ls')
       p `shouldBe` "\"ls\""
     it "can be combined with And" $ do
-      pending
+      let a = ls `andThen` cd (varFromEnvUnsafe "HOME")
+      shExpr a `shouldBe` "\"ls\" && cd ${HOME}"
     it "can be combined with Or" $ do
-      pending
+      let o = ls `orElse` cd (varFromEnvUnsafe "HOME")
+      shExpr o `shouldBe` "\"ls\" || cd ${HOME}"
     it "can be combined with Pipe" $ do
       pending
   describe "A Command" $ do

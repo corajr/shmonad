@@ -35,10 +35,10 @@ echo :: (ShShow a) => Expr a -> Script ()
 echo expr = liftF $ Echo expr ()
 
 cmd :: Expr Path -> [Expr StrSum] -> [Redirect] -> Script ()
-cmd p args' redirs' = liftF $ Command (cmd' p args' redirs') ()
+cmd p args' redirs' = liftF $ RunCommand (cmd' p args' redirs') ()
 
 exec :: Command a => Expr (Cmd a) -> Script ()
-exec c = liftF $ Command c ()
+exec c = liftF $ RunCommand c ()
 
 -- | Exit with a result code.
 exit :: Expr Integer -> Script ()

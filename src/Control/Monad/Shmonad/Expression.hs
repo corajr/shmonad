@@ -7,6 +7,7 @@
 module Control.Monad.Shmonad.Expression
   ( module Control.Monad.Shmonad.Expression
   , module Control.Monad.Shmonad.Expression.Quote
+  , module Control.Monad.Shmonad.Expression.Test 
   , module Control.Monad.Shmonad.Expression.Types
   ) where
 
@@ -18,6 +19,7 @@ import qualified Data.Text.Lazy as L
 import System.Posix (Fd(..))
 import System.Posix.IO (stdOutput, stdError)
 import Control.Monad.Shmonad.Expression.Quote
+import Control.Monad.Shmonad.Expression.Test
 import Control.Monad.Shmonad.Expression.Types
 
 default (L.Text)
@@ -41,10 +43,6 @@ instance ShEq a => ShEq (Quoted a) where
 instance ShEq StrSum where
   (.==.) = StrEquals
 
--- | Enumeration of numerical comparisons (==, <, >, ...).
-data CompareOp = Equal | GreaterThan | GreaterOrEqual | LessThan | LessOrEqual
-  deriving Show
-
 -- | Two numeric variables may be less than, greater than, or equal to each other.
 class (Variable a, Num a) => ShOrd a where
   (.>.) :: Expr a -> Expr a -> Expr ShBool
@@ -65,7 +63,7 @@ data Redirect
   | StdinFromFile (Expr Path)
 
 data Cmd a = Cmd
-  { cmdPath :: Expr Path
+  { cmdName :: Expr StrSum
   , cmdArgs :: [Expr StrSum]
   , cmdRedirs :: [Redirect]
   }
@@ -74,7 +72,7 @@ data Cmd a = Cmd
 data Expr a where
   Lit    :: (ShShow a) => a -> Expr a
   Var    :: (Variable a) => VarID a -> Expr a
-  EnvVar :: (Variable a) => VarID a -> Expr (Maybe a)
+  MaybeV  :: (Variable a) => VarID a -> Expr (Maybe a)
   Plus   :: Expr Integer -> Expr Integer -> Expr Integer
   Concat :: (ShShow a, ShShow b) => Expr a -> Expr b -> Expr StrSum
   Shown  :: (Show a) => Expr a -> Expr StrSum
@@ -85,6 +83,8 @@ data Expr a where
   Output :: Expr (Cmd a) -> Expr Str
   ExitC  :: Expr (Cmd a) -> Expr ShBool
   Not    :: Expr ShBool -> Expr ShBool
+  StrTest :: (ShShow a) => StrCheck -> Expr a -> Expr ShBool
+  PathTest :: PathCheck -> Expr Path -> Expr ShBool
   StrEquals :: (ShShow a, ShShow b) => Expr a -> Expr b -> Expr ShBool
   NumCompare :: CompareOp -> Expr Integer -> Expr Integer -> Expr ShBool
 
@@ -159,7 +159,8 @@ fromFile :: Expr Path -> Redirect
 fromFile = StdinFromFile
 
 space :: [L.Text] -> L.Text 
-space = L.intercalate " "
+space [] = ""
+space xs = L.cons ' ' $ L.intercalate " " xs
 
 andThen :: Expr (Cmd a) -> Expr (Cmd b) -> Expr (Cmd c)
 andThen = And
@@ -170,22 +171,25 @@ orElse = Or
 pipe :: Expr (Cmd a) -> Expr (Cmd b) -> Expr (Cmd c)
 pipe = Pipe
 
-varFromEnv :: Variable a => Name -> Expr (Maybe a)
-varFromEnv n = Var (VarID Nothing n)
+varFromEnvUnsafe :: Variable a => Name -> Expr a
+varFromEnvUnsafe n = Var (VarID Nothing n)
 
-shCompare :: Expr a -> Str -> Expr a -> Str
-shCompare e1 c e2 = "[ " <> shExpr e1 <> " " <> c <> " " <> shExpr e2 <> " ]"
+shUnary :: Str -> Expr a -> Str
+shUnary s e = s <> " " <> shExpr e 
+
+shCompare :: Str -> Expr a -> Expr b -> Str
+shCompare c e1 e2 = "[ " <> shExpr e1 <> " " <> c <> " " <> shExpr e2 <> " ]"
 
 -- | Returns the text of an expression
 shExpr :: Expr a -> Str
 shExpr expr = case expr of
   Lit x                    -> toShString x
   Var x                    -> "${" <> fromName (uniqueName x) <> "}"
-  EnvVar x                 -> "${" <> fromName (uniqueName x) <> ":-}"
+  MaybeV x                 -> "${" <> fromName (uniqueName x) <> ":-}"
   Plus expr1 expr2         -> "$((" <> shExpr expr1 <> "+" <> shExpr expr2 <> "))"
   Concat expr1 expr2       -> shExpr expr1 <> shExpr expr2
   Shown expr'              -> shExpr expr'
-  MkCmd c                  -> shExpr (cmdPath c)
+  MkCmd c                  -> shExpr (cmdName c)
                                 <> space (map shExpr (cmdArgs c))
                                 <> space (map (shExpr . redirToStr) (cmdRedirs c))
   And c1 c2                -> shExpr c1 <> " && " <> shExpr c2
@@ -193,11 +197,8 @@ shExpr expr = case expr of
   Pipe c1 c2               -> shExpr c1 <> " | " <> shExpr c2
   Output e                 -> "$(" <> shExpr e <> ")"
   ExitC e                  -> shExpr e
-  Not expr'                -> "! " <> shExpr expr'
-  StrEquals expr1 expr2    -> shCompare (Lit $ shExpr expr1) "=" (Lit $shExpr expr2)
-  NumCompare c expr1 expr2 -> case c of 
-                                Equal -> shCompare expr1 "-eq" expr2
-                                LessThan -> shCompare expr1 "-lt" expr2
-                                LessOrEqual -> shCompare expr1 "-le" expr2
-                                GreaterThan -> shCompare expr1 "-gt" expr2
-                                GreaterOrEqual -> shCompare expr1 "-ge" expr2
+  Not e                    -> shUnary "!" e
+  StrTest t e              -> shUnary (toTestStr t) e
+  PathTest t e             -> shUnary (toTestStr t) e
+  StrEquals expr1 expr2    -> shCompare "=" expr1 expr2
+  NumCompare c expr1 expr2 -> shCompare (toTestStr c) expr1 expr2

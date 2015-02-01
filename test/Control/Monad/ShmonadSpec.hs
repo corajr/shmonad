@@ -91,7 +91,6 @@ spec = do
     it "should correctly answer (>=)" $ property $ checkComp (>=) (.>=.)
   describe "Running a command" $ do
     it "should run a basic command" $ do
-      LIO.putStrLn (toShellScript scriptLs)
       (r, s, _) <- runScript' scriptLs
       r `shouldBe` ExitSuccess
       s `shouldSatisfy` not . null
