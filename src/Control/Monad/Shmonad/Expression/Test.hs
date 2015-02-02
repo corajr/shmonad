@@ -29,15 +29,37 @@ instance ShTest CompareOp where
         LessOrEqual -> "-le"
 
 data PathCheck
-  = Exists
-  | ExistingFile
-  | ExistingDirectory
+  = BlockSpecial
+  | CharSpecial
+  | Directory
+  | Existing
+  | RegularFile
+  | SetGIDFile
+  | SymLink
+  | IsFIFO
+  | Readable
+  | Socket
+  | NonZeroSize
+  | SetUIDFile
+  | Writable
+  | Executable
   deriving Show
 
 instance ShTest PathCheck where
   toTestStr x
     = case x of
-        Exists -> "-e"
-        ExistingFile -> "-f"
-        ExistingDirectory -> "-d"
+        BlockSpecial -> "-b"
+        CharSpecial -> "-c"
+        Directory -> "-d"
+        Existing -> "-e"
+        RegularFile -> "-f"
+        SetGIDFile -> "-g"
+        SymLink -> "-L" -- -h is synonym
+        IsFIFO -> "-p"
+        Readable -> "-r"
+        Socket -> "-S"
+        NonZeroSize -> "-s"
+        SetUIDFile -> "-u"
+        Writable -> "-w"
+        Executable -> "-x"
 
