@@ -21,14 +21,12 @@ type Transpiler = RWS () Str Nat
 data Statement next where
   NewVar :: (Variable v) => Name -> Expr v -> (VarID v -> next) -> Statement next
   SetVar :: (Variable v) => VarID v -> Expr v -> next -> Statement next
-  EnvVar :: (Variable v) => Expr (Maybe v) -> Expr StrSum -> next -> Statement next
-  RunCommand :: (Command a) => Expr (Cmd a) -> next -> Statement next
-  Conditional :: Cond (Expr ShBool) (Statement a) -> next -> Statement next
-  Echo :: (ShShow a) => Expr a -> next -> Statement next
-  Exit :: Expr Integer -> next -> Statement next
+  EnvVar :: (Variable v, ShShow v) => Expr (Maybe v) -> Expr StrSum -> next -> Statement next
+  RunCommand :: Expr (Cmd a) -> next -> Statement next
+  Conditional :: Cond (Expr ShBool) (Script a) -> next -> Statement next
 
 instance Boolean (Expr ShBool)
-instance CondCommand (Statement next)
+instance CondCommand (Script next)
 
 instance Functor Statement where
   fmap f (NewVar name' expr' cont) = NewVar name' expr' (f . cont)
@@ -36,10 +34,26 @@ instance Functor Statement where
   fmap f (EnvVar mayv errmsg n) = EnvVar mayv errmsg (f n)
   fmap f (RunCommand c n) = RunCommand c (f n)
   fmap f (Conditional c n) = Conditional c (f n)
-  fmap f (Echo s n) = Echo s (f n)
-  fmap f (Exit e n) = Exit e (f n)
 
 type Script = Free Statement
+
+-- | Create a new variable with given name and value. Once created,
+-- a variable must always take values of the same type.
+newVar :: (Variable a) => Name -> Expr a -> Script (VarID a)
+newVar name val = liftF $ NewVar name val id
+
+-- | Set the variable's value.
+setVar :: (Variable a) => VarID a -> Expr a -> Script ()
+setVar v expr = liftF $ SetVar v expr ()
+
+cmd :: Expr Path -> [Expr StrSum] -> [Redirect] -> Script ()
+cmd p args' redirs' = liftF $ RunCommand (cmd' p args' redirs') ()
+
+exec :: Expr (Cmd a) -> Script ()
+exec c = liftF $ RunCommand c ()
+
+cond :: Cond (Expr ShBool) (Script a) -> Script ()
+cond c = liftF $ Conditional c ()
 
 indent :: Transpiler () -> Transpiler ()
 indent t = do
@@ -49,21 +63,25 @@ indent t = do
   put s'
   return a'
 
-notExist :: Expr (Maybe v) -> Expr StrSum -> Script ()
-notExist = undefined
+exitErr :: (ShShow a) => Expr a -> Script ()
+exitErr errMsg = exec $ echo errMsg .&&. exit 1
 
-transpilePartCond :: PartialCond (Expr ShBool) (Statement a) -> Transpiler ()
+notExist :: (Variable v, ShShow v) => Expr (Maybe v) -> Expr StrSum -> Script ()
+notExist v errMsg =
+  cond $ ifThen (test ZeroLength (shShow v)) (exitErr errMsg) fi
+
+transpilePartCond :: PartialCond (Expr ShBool) (Script a) -> Transpiler ()
 transpilePartCond pc
   = case pc of
-      Then (If b) cmd -> do
+      Then (If b) c -> do
         tell $ "if " <> shExpr b <> "; then\n"
-        indent $ transpile (return cmd)
-      ElifThen pc' b cmd -> do
+        indent $ transpile c
+      ElifThen pc' b c -> do
         transpilePartCond pc'
         tell $ "elif " <> shExpr b <> "; then\n"
-        indent $ transpile (return cmd)
+        indent $ transpile c
 
-transpileCond :: Cond (Expr ShBool) (Statement a) -> Transpiler ()
+transpileCond :: Cond (Expr ShBool) (Script a) -> Transpiler ()
 transpileCond c
   = case c of
       ElseFi p elseCmd -> do
@@ -95,11 +113,5 @@ transpile s = case s of
       transpile n
     Conditional c n -> do
       transpileCond c
-      transpile n
-    Echo s' n -> do
-      tell $ "echo " <> shExpr s' <> "\n"
-      transpile n
-    Exit e n -> do
-      tell $ "exit " <> shExpr e <> "\n"
       transpile n
   Pure _ -> return ()

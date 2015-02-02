@@ -37,7 +37,7 @@ instance CommandName (Expr StrSum) where
   toCmdName = id
 
 instance CommandName Str where
-  toCmdName = str . Lit
+  toCmdName = str
 
 class Command a where
   data Args a :: *
@@ -49,6 +49,21 @@ class Command a where
     { cmdName = toCmdName p
     , cmdArgs = argsToStr args
     , cmdRedirs = redirs }
+
+data Echo = Echo
+instance Command Echo where
+  data Args Echo = EchoArgs { echoOmitNewline :: Flag "-n"
+                            , echoStr :: Expr StrSum
+                            }
+  defaults = EchoArgs { echoOmitNewline = Flag Proxy False
+                      , echoStr = "" }
+  argsToStr args = flag (echoOmitNewline args) <> [echoStr args]
+
+data Exit = Exit
+instance Command Exit where
+  data Args Exit = ExitArgs { exitValue :: Expr Integer }
+  defaults = ExitArgs 0
+  argsToStr (ExitArgs v) = [shShow v]
 
 data Ls = Ls
 
@@ -65,7 +80,7 @@ data Cd = Cd
 instance Command Cd where
   data Args Cd = CdArgs { cdPath :: Expr Path }
   defaults = CdArgs (varFromEnvUnsafe "HOME")
-  argsToStr args = [str $ cdPath args]
+  argsToStr args = [shShow $ cdPath args]
 
 data Rm = Rm
 
@@ -79,7 +94,7 @@ instance Command Rm where
                     , rmPaths = [] }
   argsToStr args = concatMap ($ args) [ flag . rmRecursive
                                       , flag . rmForce
-                                      , map str . rmPaths
+                                      , map shShow . rmPaths
                                       ]
 
 data Tee = Tee
@@ -88,7 +103,7 @@ instance Command Tee where
   data Args Tee = TeeArgs { teeAppend :: Flag "-a"
                           , teePaths :: [Expr Path] }
   defaults = TeeArgs { teeAppend = Flag Proxy False, teePaths = [] }
-  argsToStr args = flag (teeAppend args) <> map str (teePaths args)
+  argsToStr args = flag (teeAppend args) <> map shShow (teePaths args)
 
 data AnyPath = ArbCommand (Expr Path)
 
@@ -97,11 +112,17 @@ instance Command AnyPath where
   defaults = A []
   argsToStr (A xs) = xs
 
-ls :: Expr (Cmd Ls)
-ls = MkCmd $ toCmd (path "ls") defaults []
+echo :: (ShShow a) => Expr a -> Expr (Cmd Echo)
+echo s = MkCmd $ toCmd "echo" defaults { echoStr = shShow s } []
+
+exit :: Expr Integer -> Expr (Cmd Exit)
+exit v = MkCmd $ toCmd "exit" defaults { exitValue = v } []
 
 cd :: Expr Path -> Expr (Cmd Cd)
-cd d = MkCmd $ toCmd (str $ Lit "cd") defaults { cdPath = d } []
+cd d = MkCmd $ toCmd "cd" defaults { cdPath = d } []
+
+ls :: Expr (Cmd Ls)
+ls = MkCmd $ toCmd (path "ls") defaults []
 
 rm :: Args Rm -> Expr (Cmd Rm)
 rm args = MkCmd $ toCmd (path "rm") args []

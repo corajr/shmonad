@@ -2,13 +2,10 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ExtendedDefaultRules #-}
-{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Control.Monad.Shmonad.Expression
   ( module Control.Monad.Shmonad.Expression
-  , module Control.Monad.Shmonad.Expression.Quote
-  , module Control.Monad.Shmonad.Expression.Test 
-  , module Control.Monad.Shmonad.Expression.Types
+  , module X
   ) where
 
 import Control.Exception (assert)
@@ -18,9 +15,9 @@ import Data.String (IsString, fromString)
 import qualified Data.Text.Lazy as L
 import System.Posix (Fd(..))
 import System.Posix.IO (stdOutput, stdError)
-import Control.Monad.Shmonad.Expression.Quote
-import Control.Monad.Shmonad.Expression.Test
-import Control.Monad.Shmonad.Expression.Types
+import Control.Monad.Shmonad.Expression.Quote as X
+import Control.Monad.Shmonad.Expression.Test as X
+import Control.Monad.Shmonad.Expression.Types as X
 
 default (L.Text)
 
@@ -35,7 +32,7 @@ instance ShEq Str where
   (.==.) = StrEquals
 
 instance ShEq Integer where
-  (.==.) = NumCompare Equal
+  (.==.) = BinaryTest Equal
 
 instance ShEq a => ShEq (Quoted a) where
   (.==.) = StrEquals
@@ -51,10 +48,10 @@ class (Variable a, Num a) => ShOrd a where
   (.<=.) :: Expr a -> Expr a -> Expr ShBool
 
 instance ShOrd Integer where
-  (.>.)  = NumCompare GreaterThan
-  (.>=.) = NumCompare GreaterOrEqual
-  (.<.)  = NumCompare LessThan
-  (.<=.) = NumCompare LessOrEqual
+  (.>.)  = BinaryTest GreaterThan
+  (.>=.) = BinaryTest GreaterOrEqual
+  (.<.)  = BinaryTest LessThan
+  (.<=.) = BinaryTest LessOrEqual
 
 data Redirect
   = FdToFile Fd (Expr Path)
@@ -83,10 +80,9 @@ data Expr a where
   Output :: Expr (Cmd a) -> Expr Str
   ExitC  :: Expr (Cmd a) -> Expr ShBool
   Not    :: Expr ShBool -> Expr ShBool
-  StrTest :: (ShShow a) => StrCheck -> Expr a -> Expr ShBool
-  PathTest :: PathCheck -> Expr Path -> Expr ShBool
+  UnaryTest :: (ShTest a) => Test a -> Expr a -> Expr ShBool
+  BinaryTest :: (ShTest a) => Test a -> Expr a -> Expr a -> Expr ShBool
   StrEquals :: (ShShow a, ShShow b) => Expr a -> Expr b -> Expr ShBool
-  NumCompare :: CompareOp -> Expr Integer -> Expr Integer -> Expr ShBool
 
 instance Num (Expr Integer) where
   fromInteger = Lit
@@ -105,20 +101,6 @@ instance IsString (Expr (Quoted Str)) where
 instance IsString (Expr StrSum) where
   fromString = Lit . StrSum . L.pack
 
-data StrSum = forall a. ShShow a => StrSum { getCat :: a }
-
-instance Show StrSum where
-  show (StrSum x) = show x
-
-instance Variable StrSum
-
-instance Monoid StrSum where
-  mempty = StrSum ("" :: Str)
-  StrSum x `mappend` StrSum y = StrSum $ toShString x <> toShString y
-
-instance ShShow StrSum where
-  toShString (StrSum x) = toShString x
-
 instance Monoid (Expr StrSum) where
   mempty = Lit $ StrSum ("" :: L.Text)
   mappend = Concat
@@ -126,8 +108,11 @@ instance Monoid (Expr StrSum) where
 path :: Str -> Expr Path
 path = Lit . Path . L.unpack
 
-str :: (ShShow a) => Expr a -> Expr StrSum
-str = Shown
+str :: Str -> Expr StrSum
+str = Lit . StrSum
+
+shShow :: (ShShow a) => Expr a -> Expr StrSum
+shShow = Shown
 
 quote :: Str -> Expr StrSum
 quote = Lit . StrSum . quoteStr
@@ -165,17 +150,29 @@ space xs = L.cons ' ' $ L.intercalate " " xs
 andThen :: Expr (Cmd a) -> Expr (Cmd b) -> Expr (Cmd c)
 andThen = And
 
+(.&&.) :: Expr (Cmd a) -> Expr (Cmd b) -> Expr (Cmd c)
+(.&&.) = andThen
+
 orElse :: Expr (Cmd a) -> Expr (Cmd b) -> Expr (Cmd c)
 orElse = Or
 
+(.||.) :: Expr (Cmd a) -> Expr (Cmd b) -> Expr (Cmd c)
+(.||.) = orElse
+
 pipe :: Expr (Cmd a) -> Expr (Cmd b) -> Expr (Cmd c)
 pipe = Pipe
+
+(.|.) :: Expr (Cmd a) -> Expr (Cmd b) -> Expr (Cmd c)
+(.|.) = pipe
+
+test :: (ShTest a) => Test a -> Expr a -> Expr ShBool
+test = UnaryTest
 
 varFromEnvUnsafe :: Variable a => Name -> Expr a
 varFromEnvUnsafe n = Var (VarID Nothing n)
 
 shUnary :: Str -> Expr a -> Str
-shUnary s e = s <> " " <> shExpr e 
+shUnary s e = s <> " " <> shExpr e
 
 shCompare :: Str -> Expr a -> Expr b -> Str
 shCompare c e1 e2 = "[ " <> shExpr e1 <> " " <> c <> " " <> shExpr e2 <> " ]"
@@ -198,7 +195,6 @@ shExpr expr = case expr of
   Output e                 -> "$(" <> shExpr e <> ")"
   ExitC e                  -> shExpr e
   Not e                    -> shUnary "!" e
-  StrTest t e              -> shUnary (toTestStr t) e
-  PathTest t e             -> shUnary (toTestStr t) e
+  UnaryTest t e            -> shUnary (toTestStr t) e
+  BinaryTest c expr1 expr2 -> shCompare (toTestStr c) expr1 expr2
   StrEquals expr1 expr2    -> shCompare "=" expr1 expr2
-  NumCompare c expr1 expr2 -> shCompare (toTestStr c) expr1 expr2

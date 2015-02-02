@@ -1,10 +1,11 @@
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Control.Monad.Shmonad.Expression.Types where
 
 import qualified Data.Text.Lazy as L
 import Data.Char
-import Data.Monoid ((<>))
+import Data.Monoid
 import Data.String (IsString, fromString)
 import Data.Number.Nat
 import System.Exit (ExitCode(..))
@@ -75,6 +76,24 @@ instance ShShow Path
 
 instance IsString Name where
   fromString = toName . L.pack
+
+instance ShShow a => ShShow (Maybe a) where
+  toShString (Just x) = toShString x
+  toShString Nothing = "\"\""
+
+data StrSum = forall a. ShShow a => StrSum { getCat :: a }
+
+instance Show StrSum where
+  show (StrSum x) = show x
+
+instance Variable StrSum
+
+instance Monoid StrSum where
+  mempty = StrSum ("" :: Str)
+  StrSum x `mappend` StrSum y = StrSum $ toShString x <> toShString y
+
+instance ShShow StrSum where
+  toShString (StrSum x) = toShString x
 
 isValidName :: Str -> Bool
 isValidName x = nonEmpty && allValidChars && notStartWithNumber

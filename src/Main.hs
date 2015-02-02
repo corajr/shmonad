@@ -13,7 +13,7 @@ script1 :: Script ()
 script1 = forM_ [1..5] $ \i -> do
     x <- newVar "x" (Lit (i :: Integer))
     setVar x (Var x + 5)
-    echo (Shown (Var x))
+    exec $ echo (Var x)
 
 main :: IO ()
 main = putStrLn $ L.unpack (toShellScript script1)

@@ -1,25 +1,25 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE TypeFamilies #-}
 module Control.Monad.Shmonad.Expression.Test where
 
 import Control.Monad.Shmonad.Expression.Types
 
 class ShTest a where
-  toTestStr :: a -> Str
+  data Test a :: *
+  toTestStr :: Test a -> Str
 
-data StrCheck = NonZero | ZeroLength
-  deriving Show
-
-instance ShTest StrCheck where
+instance ShTest StrSum where
+  data Test StrSum = NonZero | ZeroLength
+    deriving Show
   toTestStr x
     = case x of
         NonZero -> "-n"
         ZeroLength -> "-z"
 
--- | Enumeration of numerical comparisons (==, <, >, ...).
-data CompareOp = Equal | GreaterThan | GreaterOrEqual | LessThan | LessOrEqual
-  deriving Show
-
-instance ShTest CompareOp where
+instance ShTest Integer where
+  data Test Integer = Equal | GreaterThan | GreaterOrEqual | LessThan | LessOrEqual
+    deriving Show
   toTestStr x
     = case x of
         Equal -> "-eq"
@@ -28,24 +28,22 @@ instance ShTest CompareOp where
         LessThan -> "-lt"
         LessOrEqual -> "-le"
 
-data PathCheck
-  = BlockSpecial
-  | CharSpecial
-  | Directory
-  | Existing
-  | RegularFile
-  | SetGIDFile
-  | SymLink
-  | IsFIFO
-  | Readable
-  | Socket
-  | NonZeroSize
-  | SetUIDFile
-  | Writable
-  | Executable
-  deriving Show
-
-instance ShTest PathCheck where
+instance ShTest Path where
+  data Test Path = BlockSpecial
+                 | CharSpecial
+                 | Directory
+                 | Existing
+                 | RegularFile
+                 | SetGIDFile
+                 | SymLink
+                 | IsFIFO
+                 | Readable
+                 | Socket
+                 | NonZeroSize
+                 | SetUIDFile
+                 | Writable
+                 | Executable
+                 deriving Show
   toTestStr x
     = case x of
         BlockSpecial -> "-b"

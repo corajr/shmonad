@@ -23,11 +23,11 @@ script1 = do
   hello <- newVar "hello" (quote "Hello, ")
   world <- newVar "world" (quote "World!")
   setVar hello (Var hello <> Var world)
-  echo ("hello: " <> Var hello)
-  echo ("world: " <> Var world)
+  exec $ echo ("hello: " <> Var hello)
+  exec $ echo ("world: " <> Var world)
   x <- newVar "x" 2
   y <- newVar "y" 5
-  exit (Var x + Var y)
+  exec $ exit (Var x + Var y)
 
 script1result :: (ExitCode, String, String)
 script1result 
@@ -41,7 +41,7 @@ script1result
 scriptLs :: Script ()
 scriptLs = do
   exec ls
-  exit 0
+  exec $ exit 0
 
 {-
 scriptWithConditionals :: Script ()
@@ -66,18 +66,18 @@ runScript' :: Script a -> IO (ExitCode, String, String)
 runScript' script = runScript script [] ""
 
 checkComp :: (Integer -> Integer -> Bool) -> (Expr Integer -> Expr Integer -> Expr ShBool) -> (Integer, Integer) -> Property
-checkComp c c' (a, b) = monadicIO test
+checkComp c c' (a, b) = monadicIO test'
   where comp = a `c` b
-        test = do let e = Lit a `c'` Lit b
-                  let e' = "if " <> shExpr e <> "; then exit 0; else exit 1; fi"
-                  (r, _, _) <- run $ runScriptText e' [] ""
-                  assert $ if comp then r == ExitSuccess else r > ExitSuccess
+        test' = do let e = Lit a `c'` Lit b
+                   let e' = "if " <> shExpr e <> "; then exit 0; else exit 1; fi"
+                   (r, _, _) <- run $ runScriptText e' [] ""
+                   assert $ if comp then r == ExitSuccess else r > ExitSuccess
 
 spec :: Spec
 spec = do
   describe "The toShellScript function" $ do
     it "should return the text of a trivial Script" $ do
-      let script = toShellScript (exit 0) 
+      let script = toShellScript (exec $ exit 0) 
       script `shouldBe` "exit 0\n"
     it "should generate the text of a small Script and give expected output" $ do
       let script1' = runScript' script1

@@ -12,6 +12,7 @@ import Data.Number.Nat
 import Control.Applicative
 import Control.Monad.Free
 import Control.Monad.RWS.Lazy
+import Control.Monad.Shmonad.Command
 import Control.Monad.Shmonad.Expression
 import Control.Monad.Shmonad.Statement
 
@@ -22,7 +23,7 @@ default (L.Text)
 instance (Arbitrary a, Variable a) => Arbitrary (Statement (Free Statement a)) where
   arbitrary = do
     VStr str <- arbitrary
-    Echo <$> return str <*> arbitrary
+    RunCommand <$> echo <$> return str <*> arbitrary
 
 instance (Arbitrary a, Variable a) => Arbitrary (Script a) where
   arbitrary = Free <$> arbitrary
@@ -49,7 +50,7 @@ spec :: Spec
 spec =
   describe "A Statement" $ do
     it "can be transpiled (example)" $ do
-      let state' = Free (Exit 0 (Pure ()))
+      let state' = Free (RunCommand (exit 0) (Pure ()))
       let (_, _, w) = runRWS (transpile state') () (0 :: Nat)
       w `shouldBe` "exit 0\n"
     it "can be transpiled" $ property $ 
