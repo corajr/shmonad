@@ -3,7 +3,7 @@
 module Control.Monad.Shmonad.CommandSpec (main, spec) where
 
 import Test.Hspec
-
+import GHC.TypeLits
 import Control.Monad.Shmonad.Expression
 import Control.Monad.Shmonad.Command
 
@@ -24,13 +24,20 @@ spec = do
       let o = ls `orElse` cd (varFromEnvUnsafe "HOME")
       shExpr o `shouldBe` "\"ls\" || cd ${HOME}"
     it "can be combined with Pipe" $ do
-      pending
+      let p = ls `pipe` tee [path "/tmp/log.txt"]
+      shExpr p `shouldBe` "\"ls\" | \"tee\" \"/tmp/log.txt\""
   describe "A Command" $ do
     it "defines an Args type" $ do
-      pending
+      let args = defaults :: Args Ls
+      symbolVal (flagSymbol (lsShowAll args)) `shouldBe` "-A"
+      symbolVal (flagSymbol (lsLong args)) `shouldBe` "-l"
     it "stores default arguments" $ do
-      pending
+      let args = defaults :: Args Ls
+      flagBool (lsShowAll args) `shouldBe` False
+      flagBool (lsLong args) `shouldBe` False
     it "turns Args into a list of Str expressions" $ do
-      pending
-    it "turns a path, args, and list of redirects into an Expr (Cmd a)" $ do
-      pending
+      let argStr = argsToStr (defaults :: Args Ls)
+      null argStr `shouldBe` True
+    it "turns a path, args, and list of redirects into a Cmd a" $ do
+      let c = cmd' (path "ls") ["-1"] [toFile (path "/tmp/log.txt")]
+      shExpr c `shouldBe` "\"ls\" -1 > \"/tmp/log.txt\""
