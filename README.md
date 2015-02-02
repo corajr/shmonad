@@ -14,12 +14,21 @@ Using a general purpose language like Python or Haskell is more robust,
 but it requires that the target has a particular interpreter or the
 right processor architecture for a compiled executable.
 
-Shmonad provides an alternative: write your shell script using do notation,
-then output those instructions as an `sh` script.
+Shmonad provides an alternative to both: write your shell script using do
+notation, then output those instructions as an `sh` script.
+
+## Usage
+
+Not nearly ready for use yet. Docs and a lot of features are still a big
+TODO.
+
+## Credit to...
 
 A [Stack Overflow answer](http://stackoverflow.com/a/14084654/3827808) by
-Gabriel Gonzalez introduced me to the method of creating such a DSL.
+Gabriel Gonzalez introduced me to the method of creating such a DSL using the
+free monad. While it turned out to be not what the asker wanted, it was a very
+edifying reply!
 
-The very similar [shell-monad](http://hackage.haskell.org/package/shell-monad)
-does exactly this, but is less type-safe and doesn't take advantage of the
-free monad.
+NB: The [shell-monad](http://hackage.haskell.org/package/shell-monad) package
+does much the same, but I was hoping for something more type-safe. Nevertheless
+it's been helpful to see an alternative implementation of a similar tool.
