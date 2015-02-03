@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ExtendedDefaultRules #-}
-
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Control.Monad.Shmonad.Statement where
 
 import Control.Monad.Free
@@ -18,22 +18,32 @@ default (L.Text)
 -- | Provides a writer and state monad for transforming ASTs into shell script.
 type Transpiler = RWS () Str Nat
 
+class SubTranspilable a where
+  subTranspile :: a -> Transpiler ()
+
 data Statement next where
   NewVar :: (Variable v) => Name -> Expr v -> (VarID v -> next) -> Statement next
   SetVar :: (Variable v) => VarID v -> Expr v -> next -> Statement next
   EnvVar :: (Variable v, ShShow v) => Expr (Maybe v) -> Expr StrSum -> next -> Statement next
-  RunCommand :: Expr (Cmd a) -> next -> Statement next
-  Conditional :: Cond (Expr ShBool) (Script a) -> next -> Statement next
+  RunCommand :: SubTranspilable a => a -> next -> Statement next
 
 instance Boolean (Expr ShBool)
 instance CondCommand (Script next)
+instance SubTranspilable (Expr (Cmd a i o)) where
+  subTranspile x = tell $ shExpr x <> "\n"
+instance SubTranspilable (Cond (Expr ShBool) (Script a)) where
+  subTranspile = transpileCond
+instance SubTranspilable (Script a) where
+  subTranspile s = do
+    tell "(\n"
+    transpile s
+    tell ")\n"
 
 instance Functor Statement where
   fmap f (NewVar name' expr' cont) = NewVar name' expr' (f . cont)
   fmap f (SetVar v e n) = SetVar v e (f n)
   fmap f (EnvVar mayv errmsg n) = EnvVar mayv errmsg (f n)
   fmap f (RunCommand c n) = RunCommand c (f n)
-  fmap f (Conditional c n) = Conditional c (f n)
 
 type Script = Free Statement
 
@@ -46,14 +56,20 @@ newVar name val = liftF $ NewVar name val id
 setVar :: (Variable a) => VarID a -> Expr a -> Script ()
 setVar v expr = liftF $ SetVar v expr ()
 
-cmd :: Expr Path -> [Expr StrSum] -> [Redirect] -> Script ()
-cmd p args' redirs' = liftF $ RunCommand (cmd' p args' redirs') ()
+runC :: SubTranspilable a => a -> Script ()
+runC c = liftF $ RunCommand c ()
 
-exec :: Expr (Cmd a) -> Script ()
-exec c = liftF $ RunCommand c ()
+exec :: Expr (Cmd a i o) -> Script ()
+exec = runC
 
 cond :: Cond (Expr ShBool) (Script a) -> Script ()
-cond c = liftF $ Conditional c ()
+cond = runC
+
+subshell :: Script a -> Script ()
+subshell = runC
+
+cmd :: Expr Path -> [Expr StrSum] -> [Redirect] -> Script ()
+cmd p args' redirs' = liftF $ RunCommand (cmd' p args' redirs') ()
 
 indent :: Transpiler () -> Transpiler ()
 indent t = do
@@ -67,8 +83,7 @@ exitErr :: (ShShow a) => Expr a -> Script ()
 exitErr errMsg = exec $ echo errMsg .&&. exit 1
 
 notExist :: (Variable v, ShShow v) => Expr (Maybe v) -> Expr StrSum -> Script ()
-notExist v errMsg =
-  cond $ ifThen (test ZeroLength (shShow v)) (exitErr errMsg) fi
+notExist v errMsg = cond $ ifThen (test ZeroLength (shShow v)) (exitErr errMsg) fi
 
 transpilePartCond :: PartialCond (Expr ShBool) (Script a) -> Transpiler ()
 transpilePartCond pc
@@ -109,9 +124,6 @@ transpile s = case s of
       transpile (notExist v errmsg)
       transpile n
     RunCommand c n -> do
-      tell $ shExpr c <> "\n"
-      transpile n
-    Conditional c n -> do
-      transpileCond c
+      subTranspile c
       transpile n
   Pure _ -> return ()

@@ -59,7 +59,7 @@ data Redirect
   | FdToFd Fd Fd
   | StdinFromFile (Expr Path)
 
-data Cmd a = Cmd
+data Cmd a i o = Cmd
   { cmdName :: Expr StrSum
   , cmdArgs :: [Expr StrSum]
   , cmdRedirs :: [Redirect]
@@ -73,12 +73,12 @@ data Expr a where
   Plus   :: Expr Integer -> Expr Integer -> Expr Integer
   Concat :: (ShShow a, ShShow b) => Expr a -> Expr b -> Expr StrSum
   Shown  :: (Show a) => Expr a -> Expr StrSum
-  MkCmd  :: Cmd a -> Expr (Cmd a)
-  And    :: Expr (Cmd a) -> Expr (Cmd b) -> Expr (Cmd c)
-  Or     :: Expr (Cmd a) -> Expr (Cmd b) -> Expr (Cmd c)
-  Pipe   :: Expr (Cmd a) -> Expr (Cmd b) -> Expr (Cmd c)
-  Output :: Expr (Cmd a) -> Expr Str
-  ExitC  :: Expr (Cmd a) -> Expr ShBool
+  MkCmd  :: Cmd a i o -> Expr (Cmd a i o)
+  And    :: Expr (Cmd a i o) -> Expr (Cmd b i1 o1) -> Expr (Cmd c i2 o2)
+  Or     :: Expr (Cmd a i o) -> Expr (Cmd b i1 o1) -> Expr (Cmd c i2 o2)
+  Pipe   :: Expr (Cmd a i o) -> Expr (Cmd b o o1) -> Expr (Cmd c o1 o2)
+  Output :: Expr (Cmd a i o) -> Expr o
+  ExitC  :: Expr (Cmd a i o) -> Expr ShBool
   Not    :: Expr ShBool -> Expr ShBool
   UnaryTest :: (ShTest a) => Test a -> Expr a -> Expr ShBool
   BinaryTest :: (ShTest a) => Test a -> Expr a -> Expr a -> Expr ShBool
@@ -147,22 +147,22 @@ space :: [L.Text] -> L.Text
 space [] = ""
 space xs = L.cons ' ' $ L.intercalate " " xs
 
-andThen :: Expr (Cmd a) -> Expr (Cmd b) -> Expr (Cmd c)
+andThen :: Expr (Cmd a i o) -> Expr (Cmd b i1 o1) -> Expr (Cmd c i2 o2)
 andThen = And
 
-(.&&.) :: Expr (Cmd a) -> Expr (Cmd b) -> Expr (Cmd c)
+(.&&.) :: Expr (Cmd a i o) -> Expr (Cmd b i1 o1) -> Expr (Cmd c i2 o2)
 (.&&.) = andThen
 
-orElse :: Expr (Cmd a) -> Expr (Cmd b) -> Expr (Cmd c)
+orElse :: Expr (Cmd a i o) -> Expr (Cmd b i1 o1) -> Expr (Cmd c i2 o2)
 orElse = Or
 
-(.||.) :: Expr (Cmd a) -> Expr (Cmd b) -> Expr (Cmd c)
+(.||.) :: Expr (Cmd a i o) -> Expr (Cmd b i1 o1) -> Expr (Cmd c i2 o2)
 (.||.) = orElse
 
-pipe :: Expr (Cmd a) -> Expr (Cmd b) -> Expr (Cmd c)
+pipe :: Expr (Cmd a i o) -> Expr (Cmd b o o1) -> Expr (Cmd c o1 o2)
 pipe = Pipe
 
-(.|.) :: Expr (Cmd a) -> Expr (Cmd b) -> Expr (Cmd c)
+(.|.) :: Expr (Cmd a i o) -> Expr (Cmd b o o1) -> Expr (Cmd c o1 o2)
 (.|.) = pipe
 
 test :: (ShTest a) => Test a -> Expr a -> Expr ShBool
